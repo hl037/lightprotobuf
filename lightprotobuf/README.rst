@@ -54,7 +54,7 @@ Is translated in python with::
    class BarMsg(Message):
    	bar_enum = Field(1, FooMsg.BarEnum, Field.REQUIRED, **{})
 
-As you can see, the fields folows this template ::
+As you can see, the fields follows this template ::
 
    <name> = Field(<tag number>, <type>, Field.<REQUIRED|OPTIONEL|REPEATED>, **{<options as a dict (optional)>}
 

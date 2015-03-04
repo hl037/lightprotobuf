@@ -9,14 +9,14 @@ with open(path.join(here, 'DESCRIPTION.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
-    name='lightprotobuf',
+    name='lightprotobufgen',
 
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='1.0.b1',
+    version='1.0.dev0',
 
-    description='A light full Python3 Protocol Buffers implementation',
+    description='A Script to translate .proto files to lightprotobuf messages',
     long_description=long_description,
 
     # The project's main homepage.
@@ -27,7 +27,7 @@ setup(
     author_email='hl037.prog@gmail.com',
 
     # Choose your license
-    license='LGPL3',
+    license='GPL3+',
 
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
@@ -35,7 +35,7 @@ setup(
         #   3 - Alpha
         #   4 - Beta
         #   5 - Production/Stable
-        'Development Status :: 4 - Beta',
+				'Development Status :: 2 - Pre-Alpha',
 
         # Indicate who your project is intended for
         'Intended Audience :: Developers',
@@ -43,7 +43,7 @@ setup(
 				'Topic :: Internet',
 
         # Pick your license as you wish (should match "license" above)
-				'License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)',
+				'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
 
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
@@ -65,7 +65,9 @@ setup(
     # project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=[],
+    install_requires=[
+				'antlr4-python3-runtime>=4.5',
+			],
 
     # List additional groups of dependencies here (e.g. development dependencies).
     # You can install these using the following syntax, for example:
@@ -89,5 +91,8 @@ setup(
     # "scripts" keyword. Entry points provide cross-platform support and allow
     # pip to create the appropriate form of executable for the target platform.
     entry_points={
-    },
+				'console_scripts': [
+						'lightprotobufgen=lightprotobufgen:_main',
+					],
+			},
 )
