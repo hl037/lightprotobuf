@@ -10,7 +10,7 @@ else:
     from protobufListener import protobufListener
 def serializedATN():
     with StringIO() as buf:
-        buf.write("\3\u0430\ud6d1\u8206\uad2d\u4417\uaef1\u8d80\uaadd\3:")
+        buf.write("\3\u0430\ud6d1\u8206\uad2d\u4417\uaef1\u8d80\uaadd\3;")
         buf.write("\u00c8\4\2\t\2\4\3\t\3\4\4\t\4\4\5\t\5\4\6\t\6\4\7\t\7")
         buf.write("\4\b\t\b\4\t\t\t\4\n\t\n\4\13\t\13\4\f\t\f\4\r\t\r\4\16")
         buf.write("\t\16\4\17\t\17\4\20\t\20\4\21\t\21\4\22\t\22\4\23\t\23")
@@ -129,7 +129,7 @@ class protobufParser ( Parser ):
                       u"CAMEL_IDENT", u"INT_LIT", u"DEC_INT", u"HEX_INT", 
                       u"OCT_INT", u"FLOAT_LIT", u"BOOL_LIT", u"STR_LIT", 
                       u"QUOTE", u"HEX_ESCAPE", u"OCT_ESCAPE", u"CHAR_ESCAPE", 
-                      u"WS" ]
+                      u"COMMENT", u"WS" ]
 
     RULE_proto_rule = 0
     RULE_import_rule = 1
@@ -213,7 +213,8 @@ class protobufParser ( Parser ):
     HEX_ESCAPE=53
     OCT_ESCAPE=54
     CHAR_ESCAPE=55
-    WS=56
+    COMMENT=56
+    WS=57
 
     def __init__(self, input:TokenStream):
         super().__init__(input)

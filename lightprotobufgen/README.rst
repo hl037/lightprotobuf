@@ -23,3 +23,14 @@ The tool is still in developpment and some features of official .proto format ar
    - packages : Like google official implementation, it won't be implemented because python use the file paths as modules/package
 
 The 1.0 release will implement the full .proto specifications.
+
+Release notes
+=============
+
+1.0.dev1
+--------
+
+- Comments added to the grammar
+- Correction of the syntax of negated set in the grammar
+
+

@@ -56,7 +56,7 @@ FLOAT_LIT : [0-9]+('.'[0-9]+)?([Ee][\\+-]?[0-9]+)? ;
 
 BOOL_LIT : 'true' | 'false' ;
 
-STR_LIT : QUOTE ( HEX_ESCAPE | OCT_ESCAPE | CHAR_ESCAPE | [^\0\n] )* QUOTE ;
+STR_LIT : QUOTE ( HEX_ESCAPE | OCT_ESCAPE | CHAR_ESCAPE | ~[\0\n] )* QUOTE ;
 
 QUOTE : ["'] ;
 
@@ -65,6 +65,8 @@ HEX_ESCAPE : '\\'[Xx][A-Fa-f0-9][A-Fa-f0-9]?;
 OCT_ESCAPE : '\\0'?[0-7]{1,3} ;
 
 CHAR_ESCAPE : '\\'[abfnrtv\\?'"] ;
+
+COMMENT : '//'~[\0\n]*'\n' -> skip;
 
 WS: [ \t\r\n]+ -> skip;
 
