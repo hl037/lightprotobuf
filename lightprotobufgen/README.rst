@@ -27,6 +27,11 @@ The 1.0 release will implement the full .proto specifications.
 Release notes
 =============
 
+1.0.dev2
+--------
+
+- Remove DESCRIPTION.rst because duplicate of README.rst
+
 1.0.dev1
 --------
 

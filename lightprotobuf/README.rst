@@ -88,3 +88,12 @@ To encode a message, lightprotobuf uses stream objects : each DataType has a ``t
    m = Message.from_stream(s)
    
 _Note_ : if required field is missing, it raises a FieldNotOptional exception
+
+Release Notes
+=============
+
+1.0.b2
+------
+
+- Remove DESCRIPTION.rst because duplicate of README.rst
+  
