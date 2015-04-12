@@ -110,7 +110,7 @@ class UVarint(DataType):
 		bs = bytearray()
 		b = stream.read(1)
 		if len(b) != 1:
-			raise IOError('Unexpected read bytes length')
+			raise IOError('Unexpected read bytes length ({})'.format(len(b)))
 		bs.append(b[0])
 		while b[0] & mid_8:
 			b = stream.read(1)
@@ -244,7 +244,6 @@ class Bytes(DataType):
 		UVarint.to_stream(stream, l)
 		if stream.write(value) != l:
 			raise IOError('Bytes not written')
-	
 	@classmethod
 	def from_stream(cls, stream):
 		l = UVarint.from_stream(stream)
@@ -252,6 +251,9 @@ class Bytes(DataType):
 		while len(bs) < l:
 			bs = bs + stream.read(l - len(bs))
 		return bs
+	@classmethod
+	def from_py(cls, value):
+		return bytes(value)
 
 class String(Bytes):
 	@classmethod
@@ -260,6 +262,9 @@ class String(Bytes):
 	@classmethod
 	def from_stream(cls, stream):
 		return super().from_stream(stream).decode('UTF-8')
+	@classmethod
+	def from_py(cls, value):
+		return str(value)
 
 
 ###############################################################################
@@ -457,16 +462,16 @@ class Array:
 		return self.list.__contains__(self.field.datatype.from_py(item))
 	
 	def swap(self, l):
-		checked = [ self.field.datatype.to_py(x) for x in l ]
-		l = self.get_list()
+		checked = [ self.field.datatype.from_py(x) for x in l ]
+		l = self.get_as_list()
 		self.list = checked
 		return l
 	
 	def get_as_list(self):
-		return [ self.field.datatype.from_py(x) for x in self.list ]
+		return [ self.field.datatype.to_py(x) for x in self.list ]
 	
-	def append(self, val):
-		return self.list.append(self.datatype.from_py(value))
+	def append(self, value):
+		return self.list.append(self.field.datatype.from_py(value))
 
 class Field:
 	REQUIRED = 0
@@ -497,20 +502,20 @@ class Field:
 class Tag:
 	def __init__(self, field):
 		self.field = field
-		self.value = None
+		if field.rule == field.REPEATED:
+			self.value = Array(field)
+		else:
+			self.value = None
 
 	def getValue(self):
 		if self.field.rule is Field.REPEATED:
-			return self.get_as_list()
+			return self.value
 		else:
 			return self.field.datatype.to_py(self.value)
 	
 	def setValue(self, value):
 		if self.field.rule is Field.REPEATED:
-			try:
-				self.value.swap(value)
-			except TypeError:
-				self.value.append(value)
+			self.value.swap(value)
 		else:
 			self.value = self.field.datatype.from_py(value)
 	
@@ -544,7 +549,10 @@ class Message(DataType, metaclass = MessageMeta):
 				if F.datatype.typeid != typeid:
 					default_types[typeid].from_stream(stream)
 				else:
-					self._tags[tag].value = T.from_stream(stream)
+					if F.rule is Field.REPEATED:
+						self._tags[tag].value.append(T.from_stream(stream))
+					else:
+						self._tags[tag].value = T.from_stream(stream)
 			index = UVarint.from_stream(stream)
 		return self
 	
@@ -559,9 +567,15 @@ class Message(DataType, metaclass = MessageMeta):
 			F = tag.field
 			T = F.datatype
 			if tag.value is not None:
-				UVarint.to_stream(stream, (i<<3) | T.typeid)
-				T.to_stream(stream, tag.value)
-			elif F.rule is not Field.OPTIONAL:
+				tag_num = (i<<3) | T.typeid
+				if tag.field.rule is Field.REPEATED:
+					values = tag.value
+				else:
+					values = [tag.value]
+				for v in values:
+					UVarint.to_stream(stream, tag_num)
+					T.to_stream(stream, v)
+			elif F.rule is Field.REQUIRED:
 				raise FieldNotOptional('Field {} in {} is not optional'.format(F.name, cls.__name__))
 	
 	@classmethod

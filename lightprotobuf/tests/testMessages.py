@@ -1,7 +1,6 @@
 
 
 import unittest
-from datatypes import *
 from lightprotobuf import *
 from io import *
 from inspect import isclass
