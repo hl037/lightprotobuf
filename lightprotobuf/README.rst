@@ -28,6 +28,8 @@ This message::
          BAR = 6;
       }
       required BarEnum bar_enum = 3;
+      repeated string foo_rep = 4;
+      repeated int32 foo_pak = 5 [packed=true];
    }
    
    message BarMsg {
@@ -35,7 +37,7 @@ This message::
    }
 
 
-Is translated in python with::
+Is translated in python to::
 
    from enum import IntEnum
    from lightprotobuf import *
@@ -54,18 +56,19 @@ Is translated in python with::
    class BarMsg(Message):
    	bar_enum = Field(1, FooMsg.BarEnum, Field.REQUIRED, **{})
 
-As you can see, the fields follows this template ::
+
+As you can see, the fields follow this template ::
 
    <name> = Field(<tag number>, <type>, Field.<REQUIRED|OPTIONEL|REPEATED>, **{<options as a dict (optional)>}
 
 Enums are python's ``enum.IntEnum``
 
-Nested type are reals python nested types referenced just like in .proto
+Nested types are real python nested types referenced just like in .proto
 
-Interface
----------
+API
+---
 
-The fields are actually transformed as attribute via descriptors. So you can access fields easily::
+The fields are actually transformed as attributes via descriptors. So you can access fields easily::
 
     m = FooMsg()
     m.foo_field = 5
@@ -74,7 +77,29 @@ The fields are actually transformed as attribute via descriptors. So you can acc
     m.foo_enum = FooEnum.FIELD # OK
     m.bar_enum = FooMsg.BarEnum.BAR # OK
 
-Repeated fields expect iterables.
+Repeated fields atc like a list::
+
+    m.foo_rep = ["a string", "another"] # OK
+    li = m.foo_rep # Get a reference to the list
+    li.append("a string") # OK, append the string
+    li.append(b'a bytes') # TypeError because there is a check to avoid mistakes
+
+
+Note : packed fields are able to decode either data packed either multiple occurence of the field e.g. the test case::
+
+		class Repeated(Message):
+			r = Field(1, Int32, Field.REPEATED, packed="True")
+		nb = [1,150,1,2,3,150]
+		b = io.BytesIO(b'\x0C\x08\x01\x08\x96\x01\x0A\x05\x01\x02\x03\x96\x01')
+		m = Repeated.from_stream(b)
+		self.assertEqual(list(m.r), nb)
+		# 0C (12) bytes following
+		# 08 = 1 << 3 | 0
+		# varints etc.
+		# 0A = 1 << 3 | 2
+		# 05 bytes following
+		# concatened varints etc.
+
 
 To encode a message, lightprotobuf uses stream objects : each DataType has a ``to_stream`` and ``from_stream`` class method. Just to call it from a message to encode/decode a message::
 
@@ -91,6 +116,12 @@ _Note_ : if required field is missing, it raises a FieldNotOptional exception
 
 Release Notes
 =============
+
+1.0.b3
+------
+
+- WARNING : module moved at top-level. Use `import lightprotobuf` rather than `from lightprotobuf import lightprotobuf`
+- Add support for repeated fields, packed and not packed
 
 1.0.b2
 ------

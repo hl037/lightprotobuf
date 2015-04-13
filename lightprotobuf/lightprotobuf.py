@@ -25,7 +25,7 @@ mid_64       = 0x8000000000000000
 mask_32      = 0xffffffff
 mask_31      = 0x7fffffff
 mid_32       = 0x80000000
-mid_8				 = 0x80
+mid_8        = 0x80
 mask_3       = 0x7
 
 class FieldNotOptional(RuntimeError):
@@ -104,7 +104,7 @@ class UVarint(DataType):
 		bs = cls.encode(value)
 		if stream.write(bs) != len(bs):
 			raise IOError('Bytes not written')
-
+	
 	@classmethod
 	def from_stream(cls, stream):
 		bs = bytearray()
@@ -118,7 +118,7 @@ class UVarint(DataType):
 				raise IOError('Unexpected read bytes length')
 			bs.append(b[0])
 		return cls.decode(bs)
-
+	
 	@classmethod
 	def to_py(cls, value):
 		return value
@@ -170,7 +170,7 @@ class Varint(UVarint):
 		value = int(value)
 		cls.assert_not_overflow(value)
 		return value
-
+	
 	@classmethod
 	def from_py(cls, value):
 		value = int(value)
@@ -271,7 +271,7 @@ class String(Bytes):
 														 # Fixed Byte length #
 ###############################################################################
 
-														 
+
 class Fixed(Bytes):
 	@classmethod
 	def to_stream(cls, stream, value):
@@ -402,12 +402,14 @@ class SFixed32(Fixed32):
 				m))
 		return value
 
+
 default_types = {
 		0 : UVarint,
 		1 : Fixed64,
 		2 : Bytes,
 		5 : Fixed32,
 	}
+
 
 class EnumFieldType(Varint):
 	enum = IntEnum(value='EmptyEnum', names = dict())
@@ -429,10 +431,14 @@ class EnumFieldType(Varint):
 class InvalidFieldRuleException(Exception):
 	pass
 
+
 class Array:
-	def __init__(self, field):
+	def __init__(self, tag):
 		self.list = []
-		self.field = field
+		self.tag = tag
+		self.field = tag.field
+		self.packed = self.field.attributes.get("packed", "false")
+		self.packed = True if self.packed.lower() == "true" else False
 	
 	def __len__(self):
 		return self.list.__len__()
@@ -472,6 +478,29 @@ class Array:
 	
 	def append(self, value):
 		return self.list.append(self.field.datatype.from_py(value))
+	
+	def from_stream(self, stream, index=None):
+		if self.packed and (index is None or index != self.field.index()):
+			array = Bytes.from_stream(stream)
+			length = len(array)
+			b = io.BytesIO(array)
+			while b.tell() < length:
+				self.list.append(self.field.datatype.from_stream(b))
+		else:
+			self.list.append(self.field.datatype.from_stream(stream))
+	
+	def to_stream(self, stream):
+		if self.packed:
+			b = io.BytesIO()
+			for i in self.list:
+				self.field.datatype.to_stream(b, i)
+			UVarint.to_stream(stream, self.field.tag << 3 | Bytes.typeid)
+			Bytes.to_stream(stream, b.getvalue())
+		else:
+			for i in self.list:
+				UVarint.to_stream(stream, self.field.index())
+				self.field.datatype.to_stream(stream, i)
+
 
 class Field:
 	REQUIRED = 0
@@ -498,15 +527,19 @@ class Field:
 	def __set__(self, instance, value):
 		instance._tags[self.tag].setValue(value)
 	
+	def index(self):
+		return self.tag << 3 | self.datatype.typeid
+	
+
 
 class Tag:
 	def __init__(self, field):
 		self.field = field
 		if field.rule == field.REPEATED:
-			self.value = Array(field)
+			self.value = Array(self)
 		else:
 			self.value = None
-
+	
 	def getValue(self):
 		if self.field.rule is Field.REPEATED:
 			return self.value
@@ -518,7 +551,8 @@ class Tag:
 			self.value.swap(value)
 		else:
 			self.value = self.field.datatype.from_py(value)
-	
+
+
 class MessageMeta(type):
 	def __init__(cls, name, bases, attrs):
 		cls.fields = dict()
@@ -527,6 +561,7 @@ class MessageMeta(type):
 				cls.fields[k] = v
 				v.name = k
 		return super(MessageMeta, cls).__init__(name, bases, attrs)
+
 
 class Message(DataType, metaclass = MessageMeta):
 	typeid = 2
@@ -545,12 +580,12 @@ class Message(DataType, metaclass = MessageMeta):
 				default_types[typeid].from_stream(stream)
 			else:
 				F = self._tags[tag].field
-				T = F.datatype
-				if F.datatype.typeid != typeid:
-					default_types[typeid].from_stream(stream)
+				if F.rule is Field.REPEATED:
+					self._tags[tag].value.from_stream(stream, index)
 				else:
-					if F.rule is Field.REPEATED:
-						self._tags[tag].value.append(T.from_stream(stream))
+					T = F.datatype
+					if F.datatype.typeid != typeid:
+						default_types[typeid].from_stream(stream)
 					else:
 						self._tags[tag].value = T.from_stream(stream)
 			index = UVarint.from_stream(stream)
@@ -566,15 +601,11 @@ class Message(DataType, metaclass = MessageMeta):
 		for i, tag in value._tags.items():
 			F = tag.field
 			T = F.datatype
-			if tag.value is not None:
-				tag_num = (i<<3) | T.typeid
-				if tag.field.rule is Field.REPEATED:
-					values = tag.value
-				else:
-					values = [tag.value]
-				for v in values:
-					UVarint.to_stream(stream, tag_num)
-					T.to_stream(stream, v)
+			if F.rule == Field.REPEATED:
+				tag.value.to_stream(stream)
+			elif tag.value is not None:
+				UVarint.to_stream(stream, F.index())
+				T.to_stream(stream, tag.value)
 			elif F.rule is Field.REQUIRED:
 				raise FieldNotOptional('Field {} in {} is not optional'.format(F.name, cls.__name__))
 	
@@ -583,5 +614,4 @@ class Message(DataType, metaclass = MessageMeta):
 		b = io.BytesIO()
 		cls.to_stream_root(b, value)
 		Bytes.to_stream(stream, b.getvalue())
-
 
